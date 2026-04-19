@@ -38,6 +38,10 @@
   .btn-ai { background: #1a1a2e; color: #a78bfa; border: 1px solid #2e2a4a; }
   .btn-ai:hover { background: #22223a; }
   .btn-ai:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-spotify { background: #1a2a1a; color: #1db954; border: 1px solid #1db95440; }
+  .btn-spotify:hover { background: #1e3320; }
+  .btn-export { background: #1a1e2a; color: #7eb8f7; border: 1px solid #2a3a5a; }
+  .btn-export:hover { background: #1e2535; }
   .search-row { display: flex; gap: 12px; margin-bottom: 24px; align-items: center; flex-wrap: wrap; }
   .search-input { flex: 1; min-width: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border 0.15s; }
   .search-input:focus { border-color: var(--accent); }
@@ -48,6 +52,10 @@
   .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
   .stat-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
   .stat-card .value { font-family: 'Bebas Neue', sans-serif; font-size: 30px; color: var(--accent); line-height: 1; }
+  .stat-card .change { font-size: 11px; margin-top: 6px; font-family: 'DM Mono', monospace; }
+  .change-up { color: #4caf7d; }
+  .change-down { color: #ff6b6b; }
+  .change-neutral { color: var(--muted); }
   .sync-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
   .sync-info { font-size: 13px; color: var(--muted); }
   .sync-info strong { color: var(--text); }
@@ -55,6 +63,10 @@
   table { width: 100%; border-collapse: collapse; }
   thead tr { background: var(--surface2); }
   th { padding: 12px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--text); }
+  th.sort-asc::after { content: ' ↑'; color: var(--accent); }
+  th.sort-desc::after { content: ' ↓'; color: var(--accent); }
   td { padding: 12px 14px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: rgba(245,200,66,0.03); }
@@ -121,12 +133,22 @@
   .toast { position: fixed; bottom: 24px; right: 24px; background: var(--success); color: #000; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 9999; transform: translateY(100px); opacity: 0; transition: all 0.3s; max-width: 360px; line-height: 1.4; }
   .toast.show { transform: translateY(0); opacity: 1; }
   .toast.error { background: var(--accent2); color: #fff; }
-  @media (max-width: 900px) { .stats-row { grid-template-columns: repeat(3,1fr); } .insights-grid { grid-template-columns: 1fr; } .outreach-container { grid-template-columns: 1fr; } }
+  #spotify-csv-input { display: none; }
+  .year-compare-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .year-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .year-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+  .year-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .year-label { font-size: 11px; color: var(--muted); }
+  .year-val { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--text); }
+  .year-change { display: inline-block; margin-top: 8px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .year-change.up { background: #1a2a1a; color: #4caf7d; }
+  .year-change.down { background: #2a1a1a; color: #ff6b6b; }
+  .year-change.neutral { background: var(--surface2); color: var(--muted); }
+  @media (max-width: 900px) { .stats-row { grid-template-columns: repeat(3,1fr); } .insights-grid { grid-template-columns: 1fr; } .outreach-container { grid-template-columns: 1fr; } .year-compare-grid { grid-template-columns: 1fr; } }
   @media (max-width: 600px) { .header { padding: 0 16px; } .main { padding: 16px; } .stats-row { grid-template-columns: 1fr 1fr; } .form-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
-
 <div class="header">
   <div class="logo">Side Hustle <span>Experiment</span></div>
   <div class="tabs">
@@ -136,14 +158,16 @@
     <button class="tab" onclick="showPage('outreach',this)">Outreach</button>
   </div>
 </div>
-
 <div class="main">
   <div id="page-episodes" class="page active">
     <div class="section-header">
       <div class="section-title">All <span>Episodes</span></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-sync" id="sync-btn" onclick="syncFromYouTube()">⟳ Sync YouTube</button>
+        <button class="btn btn-spotify" onclick="document.getElementById('spotify-csv-input').click()">♫ Import Spotify CSV</button>
+        <input type="file" id="spotify-csv-input" accept=".csv" onchange="handleSpotifyCSV(event)">
         <button class="btn btn-ai" id="ai-process-btn" onclick="aiProcessAll()">✦ AI Process Descriptions</button>
+        <button class="btn btn-export" onclick="exportToCSV()">↓ Export CSV</button>
         <button class="btn btn-primary" onclick="openModal('episode')">+ Add Manual</button>
       </div>
     </div>
@@ -158,12 +182,27 @@
     </div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th></th><th>#</th><th>Title & Summary</th><th>Guests</th><th>Category</th><th>Date</th><th>Dur</th><th>Views</th><th>Likes</th><th>Cmts</th><th>Links</th><th>Actions</th></tr></thead>
-        <tbody id="episodes-tbody"><tr><td colspan="12"><div class="empty-state"><div class="icon">🎙️</div><p>Click "Sync YouTube" to load all your episodes</p></div></td></tr></tbody>
+        <thead>
+          <tr>
+            <th></th>
+            <th class="sortable" onclick="sortEpisodes('episode_number')">#<span class="sort-indicator" data-col="episode_number"></span></th>
+            <th class="sortable" onclick="sortEpisodes('title')">Title &amp; Summary<span class="sort-indicator" data-col="title"></span></th>
+            <th>Guests</th>
+            <th class="sortable" onclick="sortEpisodes('category')">Category<span class="sort-indicator" data-col="category"></span></th>
+            <th class="sortable" onclick="sortEpisodes('publish_date')">Date<span class="sort-indicator" data-col="publish_date"></span></th>
+            <th>Dur</th>
+            <th class="sortable" onclick="sortEpisodes('youtube_views')">Views<span class="sort-indicator" data-col="youtube_views"></span></th>
+            <th class="sortable" onclick="sortEpisodes('likes')">Likes<span class="sort-indicator" data-col="likes"></span></th>
+            <th class="sortable" onclick="sortEpisodes('comments')">Cmts<span class="sort-indicator" data-col="comments"></span></th>
+            <th class="sortable" onclick="sortEpisodes('spotify_listens')">SP Streams<span class="sort-indicator" data-col="spotify_listens"></span></th>
+            <th>Links</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="episodes-tbody"><tr><td colspan="13"><div class="empty-state"><div class="icon">🎙️</div><p>Click "Sync YouTube" to load all your episodes</p></div></td></tr></tbody>
       </table>
     </div>
   </div>
-
   <div id="page-guests" class="page">
     <div class="section-header">
       <div class="section-title">Guest <span>CRM</span></div>
@@ -184,13 +223,16 @@
       </table>
     </div>
   </div>
-
   <div id="page-insights" class="page">
     <div class="section-header">
       <div class="section-title">AI <span>Insights</span></div>
       <button class="btn btn-ai" onclick="generateInsights()" id="insights-btn">✦ Generate Insights</button>
     </div>
     <div class="stats-row" id="insights-stats"></div>
+    <div class="insight-full" id="year-compare-section" style="display:none;">
+      <h3>📅 Year Over Year Comparison</h3>
+      <div class="year-compare-grid" id="year-compare-grid"></div>
+    </div>
     <div class="insights-grid">
       <div class="insight-card"><h3>🏆 Top by Views</h3><div id="top-by-views"></div></div>
       <div class="insight-card"><h3>💬 Top by Engagement</h3><div id="top-by-engagement"></div></div>
@@ -204,7 +246,6 @@
       <div id="topics-breakdown" style="font-size:13px;color:var(--muted);">Run "AI Process Descriptions" on the Episodes tab first.</div>
     </div>
   </div>
-
   <div id="page-outreach" class="page">
     <div class="section-header">
       <div class="section-title">Outreach <span>Generator</span></div>
@@ -230,7 +271,6 @@
     </div>
   </div>
 </div>
-
 <!-- EPISODE MODAL -->
 <div class="modal-overlay" id="episode-modal">
   <div class="modal">
@@ -257,7 +297,6 @@
     </div>
   </div>
 </div>
-
 <!-- GUEST MODAL -->
 <div class="modal-overlay" id="guest-modal">
   <div class="modal">
@@ -282,21 +321,13 @@
     </div>
   </div>
 </div>
-
 <div class="toast" id="toast"></div>
-
 <script>
-// All config — no secrets here, just endpoints and non-sensitive IDs
 const SUPABASE_URL = 'https://qrhgztfgjohzhkptklgs.supabase.co';
 const PLAYLIST_ID = 'PLX_MRlWUvW7sSPFlTvb2yUPeCTGge64aj';
 const CLAUDE_FN = '/.netlify/functions/claude';
-
-// These are loaded from Netlify environment variables at runtime via the function
-// The HTML never touches the actual key values
 let SUPABASE_KEY = '';
 let YT_API_KEY = '';
-
-// On load, fetch config from a lightweight Netlify function
 async function loadConfig() {
   try {
     const res = await fetch('/.netlify/functions/claude', {
@@ -313,7 +344,6 @@ async function loadConfig() {
     showToast('Failed to load config: ' + err.message, true);
   }
 }
-
 let sbHeaders = {};
 function updateSbHeaders() {
   sbHeaders = {
@@ -323,10 +353,10 @@ function updateSbHeaders() {
     'Prefer': 'return=representation'
   };
 }
-
 let allEpisodes = [];
 let allGuests = [];
-
+let sortCol = 'episode_number';
+let sortDir = 'desc';
 async function callClaude(model, max_tokens, messages) {
   const res = await fetch(CLAUDE_FN, {
     method: 'POST',
@@ -338,7 +368,6 @@ async function callClaude(model, max_tokens, messages) {
   if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
   return data.content?.map(c => c.text || '').join('') || '';
 }
-
 function showPage(name, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -348,16 +377,13 @@ function showPage(name, btn) {
   if (name === 'guests') loadGuests();
   if (name === 'insights') loadInsightsPage();
 }
-
 function showToast(msg, isError=false) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'toast show' + (isError ? ' error' : '');
   setTimeout(() => t.className = 'toast', 4500);
 }
-
 function setStatus(msg) { document.getElementById('sync-status').textContent = msg; }
-
 function openModal(type, data=null) {
   if (type === 'episode') {
     document.getElementById('episode-modal-title').textContent = data ? 'Edit Episode' : 'Add Episode';
@@ -379,7 +405,6 @@ function openModal(type, data=null) {
 }
 function closeModal(type) { document.getElementById(type+'-modal').classList.remove('open'); }
 document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', function(e) { if(e.target===this) this.classList.remove('open'); }));
-
 function parseDuration(iso) {
   if (!iso) return null;
   const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
@@ -387,7 +412,110 @@ function parseDuration(iso) {
   const h=parseInt(m[1]||0), min=parseInt(m[2]||0), s=parseInt(m[3]||0);
   return h>0 ? `${h}:${String(min).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${min}:${String(s).padStart(2,'0')}`;
 }
-
+function sortEpisodes(col) {
+  if (sortCol === col) { sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
+  else { sortCol = col; sortDir = 'desc'; }
+  document.querySelectorAll('th.sortable').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
+  document.querySelectorAll(`[data-col="${col}"]`).forEach(el => el.closest('th').classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc'));
+  filterEpisodes();
+}
+function getSortedEpisodes(eps) {
+  return [...eps].sort((a, b) => {
+    let av = a[sortCol], bv = b[sortCol];
+    if (av == null) av = sortDir === 'asc' ? Infinity : -Infinity;
+    if (bv == null) bv = sortDir === 'asc' ? Infinity : -Infinity;
+    if (typeof av === 'string' && typeof bv === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    return sortDir === 'asc' ? av - bv : bv - av;
+  });
+}
+function normalizeTitle(t) {
+  return (t || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\b(the|a|an|ep|episode|feat|ft)\b/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function fuzzyScore(a, b) {
+  const na = normalizeTitle(a), nb = normalizeTitle(b);
+  if (na === nb) return 1;
+  const wordsA = new Set(na.split(' ').filter(w => w.length > 2));
+  const wordsB = new Set(nb.split(' ').filter(w => w.length > 2));
+  if (wordsA.size === 0 || wordsB.size === 0) return 0;
+  let matches = 0;
+  wordsA.forEach(w => { if (wordsB.has(w)) matches++; });
+  return (2 * matches) / (wordsA.size + wordsB.size);
+}
+function parseCSV(text) {
+  const lines = text.split('\n').filter(l => l.trim());
+  if (!lines.length) return [];
+  const delim = lines[0].includes(';') ? ';' : ',';
+  const headers = lines[0].split(delim).map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+  return lines.slice(1).map(line => {
+    const cols = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; } else if (c === delim && !inQ) { cols.push(cur.trim()); cur = ''; } else { cur += c; }
+    }
+    cols.push(cur.trim());
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (cols[i] || '').replace(/^"|"$/g, '').trim(); });
+    return obj;
+  }).filter(r => r.name);
+}
+async function handleSpotifyCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+  setStatus('Reading Spotify CSV...');
+  const text = await file.text();
+  const rows = parseCSV(text);
+  if (!rows.length) { showToast('No rows found in CSV', true); return; }
+  const firstRow = rows[0];
+  const colNames = Object.keys(firstRow);
+  const playsCol = colNames.find(c => c === 'plays') || colNames.find(c => c.includes('play'));
+  const nameCol = colNames.find(c => c === 'name') || colNames.find(c => c.includes('name'));
+  if (!playsCol || !nameCol) { showToast(`CSV columns: ${colNames.join(', ')} — expected "name" and "plays"`, true); return; }
+  if (!allEpisodes.length) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/episodes?order=episode_number.desc`, {headers:sbHeaders});
+    allEpisodes = await res.json();
+  }
+  let matched = 0, unmatched = 0;
+  const updates = [];
+  for (const row of rows) {
+    const plays = parseInt(row[playsCol]) || 0;
+    const csvName = row[nameCol];
+    if (!csvName) continue;
+    let bestScore = 0, bestEp = null;
+    for (const ep of allEpisodes) {
+      const score = fuzzyScore(csvName, ep.title);
+      if (score > bestScore) { bestScore = score; bestEp = ep; }
+    }
+    if (bestEp && bestScore >= 0.4) { updates.push({ id: bestEp.id, spotify_listens: plays }); matched++; }
+    else { unmatched++; console.log(`No match for: "${csvName}"`); }
+  }
+  if (!updates.length) { showToast(`No matches found. Check column names.`, true); setStatus('Spotify import failed'); return; }
+  setStatus(`Saving ${matched} play counts...`);
+  let saved = 0;
+  for (const u of updates) {
+    await fetch(`${SUPABASE_URL}/rest/v1/episodes?id=eq.${u.id}`, { method: 'PATCH', headers: sbHeaders, body: JSON.stringify({ spotify_listens: u.spotify_listens }) });
+    saved++;
+    if (saved % 10 === 0) setStatus(`Saved ${saved}/${updates.length}...`);
+  }
+  setStatus(`✓ Spotify import done — ${new Date().toLocaleTimeString()}`);
+  showToast(`✓ Matched & updated ${matched} episodes${unmatched ? ` (${unmatched} unmatched)` : ''}`);
+  loadEpisodes();
+}
+function exportToCSV() {
+  if (!allEpisodes.length) { showToast('No episodes to export', true); return; }
+  const headers = ['Episode #','Title','Publish Date','Duration','YouTube Views','Likes','Comments','Spotify Plays','Guests','Category','Summary','YouTube URL','Spotify URL','Apple URL'];
+  const escape = v => { if (v == null || v === '') return ''; const s = String(v); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s; };
+  const sorted = getSortedEpisodes(allEpisodes);
+  const rows = sorted.map(ep => [ep.episode_number||'',ep.title||'',ep.publish_date||'',ep.duration||'',ep.youtube_views||0,ep.likes||0,ep.comments||0,ep.spotify_listens||0,ep.guest_names||'',ep.category||'',ep.summary||'',ep.youtube_url||'',ep.spotify_url||'',ep.apple_url||''].map(escape).join(','));
+  const csv = [headers.map(escape).join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `side-hustle-experiment-episodes-${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast(`✓ Exported ${sorted.length} episodes`);
+}
 async function syncFromYouTube() {
   const btn = document.getElementById('sync-btn');
   btn.disabled=true; btn.textContent='⟳ Syncing...';
@@ -402,7 +530,6 @@ async function syncFromYouTube() {
       pageToken = data.nextPageToken||'';
       setStatus(`Fetched ${allItems.length} videos...`);
     } while (pageToken);
-
     const videoIds = allItems.map(i => i.snippet.resourceId.videoId);
     let videoDataMap = {};
     for (let i=0; i<videoIds.length; i+=50) {
@@ -410,54 +537,26 @@ async function syncFromYouTube() {
       const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails,snippet&id=${batch.join(',')}&key=${YT_API_KEY}`);
       const data = await res.json();
       (data.items||[]).forEach(v => {
-        videoDataMap[v.id] = {
-          views: parseInt(v.statistics.viewCount||0),
-          likes: parseInt(v.statistics.likeCount||0),
-          comments: parseInt(v.statistics.commentCount||0),
-          duration: parseDuration(v.contentDetails?.duration),
-          thumbnail: v.snippet.thumbnails?.medium?.url||v.snippet.thumbnails?.default?.url||null,
-          description: (v.snippet.description||'').substring(0,2000)
-        };
+        videoDataMap[v.id] = { views: parseInt(v.statistics.viewCount||0), likes: parseInt(v.statistics.likeCount||0), comments: parseInt(v.statistics.commentCount||0), duration: parseDuration(v.contentDetails?.duration), thumbnail: v.snippet.thumbnails?.medium?.url||v.snippet.thumbnails?.default?.url||null, description: (v.snippet.description||'').substring(0,2000) };
       });
       setStatus(`Got stats for ${Math.min(i+50,videoIds.length)}/${videoIds.length}...`);
     }
-
     setStatus('Saving to database...');
     const total = allItems.length;
     const upsertData = allItems.map((item, index) => {
       const vid = item.snippet.resourceId.videoId;
       const vd = videoDataMap[vid]||{};
-      return {
-        title: item.snippet.title,
-        publish_date: item.snippet.publishedAt ? item.snippet.publishedAt.split('T')[0] : null,
-        youtube_url: `https://www.youtube.com/watch?v=${vid}`,
-        youtube_views: vd.views||0,
-        likes: vd.likes||0,
-        comments: vd.comments||0,
-        duration: vd.duration||null,
-        thumbnail_url: vd.thumbnail||null,
-        description: vd.description||null,
-        episode_number: total - index,
-      };
+      return { title: item.snippet.title, publish_date: item.snippet.publishedAt ? item.snippet.publishedAt.split('T')[0] : null, youtube_url: `https://www.youtube.com/watch?v=${vid}`, youtube_views: vd.views||0, likes: vd.likes||0, comments: vd.comments||0, duration: vd.duration||null, thumbnail_url: vd.thumbnail||null, description: vd.description||null, episode_number: total - index };
     });
-
     for (let i=0; i<upsertData.length; i+=50) {
-      await fetch(`${SUPABASE_URL}/rest/v1/episodes`, {
-        method: 'POST',
-        headers: {...sbHeaders, 'Prefer': 'resolution=merge-duplicates,return=minimal'},
-        body: JSON.stringify(upsertData.slice(i,i+50))
-      });
+      await fetch(`${SUPABASE_URL}/rest/v1/episodes`, { method: 'POST', headers: {...sbHeaders, 'Prefer': 'resolution=merge-duplicates,return=minimal'}, body: JSON.stringify(upsertData.slice(i,i+50)) });
     }
     setStatus(`✓ Synced ${total} episodes — ${new Date().toLocaleTimeString()}`);
     showToast(`✓ Synced ${total} episodes!`);
     loadEpisodes();
-  } catch(err) {
-    setStatus('✗ Error: ' + err.message);
-    showToast('Sync failed: ' + err.message, true);
-  }
+  } catch(err) { setStatus('✗ Error: ' + err.message); showToast('Sync failed: ' + err.message, true); }
   btn.disabled=false; btn.textContent='⟳ Sync YouTube';
 }
-
 async function aiProcessAll() {
   const btn = document.getElementById('ai-process-btn');
   const freshRes = await fetch(`${SUPABASE_URL}/rest/v1/episodes?order=episode_number.desc`, {headers:sbHeaders});
@@ -478,103 +577,54 @@ async function aiProcessAll() {
   loadEpisodes();
   btn.disabled=false; btn.textContent='✦ AI Process Descriptions';
 }
-
 async function processOneEpisode(ep) {
   try {
-    const text = await callClaude('claude-haiku-4-5-20251001', 350, [{
-      role:'user',
-      content:`Podcast: "The Side Hustle Experiment" (side hustles, Amazon, e-commerce)
-Title: "${ep.title}"
-Description: ${ep.description.substring(0,1200)}
-
-Reply ONLY with valid JSON, no markdown:
-{"guest_names":"comma-separated guests or empty string if solo","topics":"3-5 main topics comma-separated","summary":"2 sentence summary","category":"ONE of: Amazon FBA|Amazon Influencer|Side Hustle|E-commerce|Mindset & Motivation|Income Report|Guest Interview|Tool & Software|Social Media|Dropshipping|Other"}`
-    }]);
+    const text = await callClaude('claude-haiku-4-5-20251001', 350, [{ role:'user', content:`Podcast: "The Side Hustle Experiment" (side hustles, Amazon, e-commerce)\nTitle: "${ep.title}"\nDescription: ${ep.description.substring(0,1200)}\n\nReply ONLY with valid JSON, no markdown:\n{"guest_names":"comma-separated guests or empty string if solo","topics":"3-5 main topics comma-separated","summary":"2 sentence summary","category":"ONE of: Amazon FBA|Amazon Influencer|Side Hustle|E-commerce|Mindset & Motivation|Income Report|Guest Interview|Tool & Software|Social Media|Dropshipping|Other"}` }]);
     const json = JSON.parse(text.replace(/```json|```/g,'').trim());
-    await fetch(`${SUPABASE_URL}/rest/v1/episodes?id=eq.${ep.id}`, {
-      method:'PATCH', headers:sbHeaders,
-      body: JSON.stringify({guest_names:json.guest_names||null, topics:json.topics||null, summary:json.summary||null, category:json.category||null})
-    });
+    await fetch(`${SUPABASE_URL}/rest/v1/episodes?id=eq.${ep.id}`, { method:'PATCH', headers:sbHeaders, body: JSON.stringify({guest_names:json.guest_names||null, topics:json.topics||null, summary:json.summary||null, category:json.category||null}) });
   } catch(e) { console.warn('Failed ep', ep.id, e.message); }
 }
-
 async function loadEpisodes() {
   if (!SUPABASE_KEY) return;
   const res = await fetch(`${SUPABASE_URL}/rest/v1/episodes?order=episode_number.desc`, {headers:sbHeaders});
   allEpisodes = await res.json();
-  renderEpisodes(allEpisodes);
+  filterEpisodes();
   renderEpisodeStats(allEpisodes);
   populateCategoryFilter(allEpisodes);
 }
-
 function fmt(n) {
   if (!n) return '0';
   if (n>=1000000) return (n/1000000).toFixed(1)+'M';
   if (n>=1000) return (n/1000).toFixed(1)+'K';
   return n.toLocaleString();
 }
-
 function renderEpisodeStats(eps) {
   const tv=eps.reduce((s,e)=>s+(e.youtube_views||0),0);
   const tl=eps.reduce((s,e)=>s+(e.likes||0),0);
   const tc=eps.reduce((s,e)=>s+(e.comments||0),0);
   const ts=eps.reduce((s,e)=>s+(e.spotify_listens||0),0);
-  document.getElementById('episode-stats').innerHTML=`
-    <div class="stat-card"><div class="label">Episodes</div><div class="value">${eps.length}</div></div>
-    <div class="stat-card"><div class="label">YT Views</div><div class="value">${fmt(tv)}</div></div>
-    <div class="stat-card"><div class="label">YT Likes</div><div class="value">${fmt(tl)}</div></div>
-    <div class="stat-card"><div class="label">YT Comments</div><div class="value">${fmt(tc)}</div></div>
-    <div class="stat-card"><div class="label">SP Listens</div><div class="value">${fmt(ts)}</div></div>
-  `;
+  document.getElementById('episode-stats').innerHTML=`<div class="stat-card"><div class="label">Episodes</div><div class="value">${eps.length}</div></div><div class="stat-card"><div class="label">YT Views</div><div class="value">${fmt(tv)}</div></div><div class="stat-card"><div class="label">YT Likes</div><div class="value">${fmt(tl)}</div></div><div class="stat-card"><div class="label">YT Comments</div><div class="value">${fmt(tc)}</div></div><div class="stat-card"><div class="label">SP Plays</div><div class="value">${fmt(ts)}</div></div>`;
 }
-
 function populateCategoryFilter(eps) {
   const cats=[...new Set(eps.map(e=>e.category).filter(Boolean))].sort();
   const sel=document.getElementById('category-filter');
   const cur=sel.value;
   sel.innerHTML='<option value="">All Categories</option>'+cats.map(c=>`<option value="${c}"${c===cur?' selected':''}>${c}</option>`).join('');
 }
-
 function renderEpisodes(eps) {
   const tbody=document.getElementById('episodes-tbody');
-  if (!eps.length) { tbody.innerHTML=`<tr><td colspan="12"><div class="empty-state"><div class="icon">🎙️</div><p>No episodes found.</p></div></td></tr>`; return; }
-  tbody.innerHTML=eps.map(ep=>`
-    <tr>
-      <td>${ep.thumbnail_url?`<img class="ep-thumb" src="${ep.thumbnail_url}" loading="lazy"/>`:`<div class="ep-thumb-placeholder">🎙️</div>`}</td>
-      <td><span class="ep-num">#${ep.episode_number||'—'}</span></td>
-      <td style="max-width:260px;">
-        <div style="font-weight:500;font-size:13px;margin-bottom:3px;line-height:1.3">${ep.title||'Untitled'} ${ep.summary?'<span class="ai-dot-green" title="AI processed"></span>':'<span class="ai-dot-grey" title="Not yet processed"></span>'}</div>
-        ${ep.summary?`<div class="ep-summary">${ep.summary}</div>`:''}
-      </td>
-      <td style="max-width:150px">${ep.guest_names?ep.guest_names.split(',').map(g=>`<span class="guest-tag">${g.trim()}</span>`).join(''):'<span style="color:var(--muted);font-size:11px">—</span>'}</td>
-      <td>${ep.category?`<span class="category-tag">${ep.category}</span>`:'<span style="color:var(--muted);font-size:11px">—</span>'}</td>
-      <td><span class="ep-date">${ep.publish_date?new Date(ep.publish_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}):'—'}</span></td>
-      <td><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">${ep.duration||'—'}</span></td>
-      <td><span class="stat-pill">${fmt(ep.youtube_views)}</span></td>
-      <td><span class="stat-pill">${fmt(ep.likes)}</span></td>
-      <td><span class="stat-pill">${fmt(ep.comments)}</span></td>
-      <td><div class="ep-links">
-        ${ep.youtube_url?`<a href="${ep.youtube_url}" target="_blank" class="link-badge link-yt">YT</a>`:''}
-        ${ep.spotify_url?`<a href="${ep.spotify_url}" target="_blank" class="link-badge link-sp">SP</a>`:''}
-        ${ep.apple_url?`<a href="${ep.apple_url}" target="_blank" class="link-badge link-ap">AP</a>`:''}
-      </div></td>
-      <td><div class="action-row">
-        <button class="btn btn-ghost btn-sm" onclick='openModal("episode",${JSON.stringify(ep).replace(/'/g,"&#39;")})'>Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteEpisode(${ep.id})">Del</button>
-      </div></td>
-    </tr>
-  `).join('');
+  if (!eps.length) { tbody.innerHTML=`<tr><td colspan="13"><div class="empty-state"><div class="icon">🎙️</div><p>No episodes found.</p></div></td></tr>`; return; }
+  tbody.innerHTML=eps.map(ep=>`<tr><td>${ep.thumbnail_url?`<img class="ep-thumb" src="${ep.thumbnail_url}" loading="lazy"/>`:`<div class="ep-thumb-placeholder">🎙️</div>`}</td><td><span class="ep-num">#${ep.episode_number||'—'}</span></td><td style="max-width:260px;"><div style="font-weight:500;font-size:13px;margin-bottom:3px;line-height:1.3">${ep.title||'Untitled'} ${ep.summary?'<span class="ai-dot-green" title="AI processed"></span>':'<span class="ai-dot-grey" title="Not yet processed"></span>'}</div>${ep.summary?`<div class="ep-summary">${ep.summary}</div>`:''}</td><td style="max-width:150px">${ep.guest_names?ep.guest_names.split(',').map(g=>`<span class="guest-tag">${g.trim()}</span>`).join(''):'<span style="color:var(--muted);font-size:11px">—</span>'}</td><td>${ep.category?`<span class="category-tag">${ep.category}</span>`:'<span style="color:var(--muted);font-size:11px">—</span>'}</td><td><span class="ep-date">${ep.publish_date?new Date(ep.publish_date+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}):'—'}</span></td><td><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">${ep.duration||'—'}</span></td><td><span class="stat-pill">${fmt(ep.youtube_views)}</span></td><td><span class="stat-pill">${fmt(ep.likes)}</span></td><td><span class="stat-pill">${fmt(ep.comments)}</span></td><td><span class="stat-pill" style="color:${ep.spotify_listens?'#1db954':'var(--muted)'}">${fmt(ep.spotify_listens)}</span></td><td><div class="ep-links">${ep.youtube_url?`<a href="${ep.youtube_url}" target="_blank" class="link-badge link-yt">YT</a>`:''}${ep.spotify_url?`<a href="${ep.spotify_url}" target="_blank" class="link-badge link-sp">SP</a>`:''}${ep.apple_url?`<a href="${ep.apple_url}" target="_blank" class="link-badge link-ap">AP</a>`:''}</div></td><td><div class="action-row"><button class="btn btn-ghost btn-sm" onclick='openModal("episode",${JSON.stringify(ep).replace(/'/g,"&#39;")})'>Edit</button><button class="btn btn-danger btn-sm" onclick="deleteEpisode(${ep.id})">Del</button></div></td></tr>`).join('');
 }
-
 function filterEpisodes() {
   const q=document.getElementById('episode-search').value.toLowerCase();
   const cat=document.getElementById('category-filter').value;
-  renderEpisodes(allEpisodes.filter(ep=>{
-    const mq=!q||(ep.title||'').toLowerCase().includes(q)||(ep.guest_names||'').toLowerCase().includes(q)||(ep.topics||'').toLowerCase().includes(q)||(ep.summary||'').toLowerCase().includes(q)||(ep.category||'').toLowerCase().includes(q)||String(ep.episode_number||'').includes(q);
-    return mq&&(!cat||ep.category===cat);
-  }));
+  const filtered=allEpisodes.filter(ep=>{ const mq=!q||(ep.title||'').toLowerCase().includes(q)||(ep.guest_names||'').toLowerCase().includes(q)||(ep.topics||'').toLowerCase().includes(q)||(ep.summary||'').toLowerCase().includes(q)||(ep.category||'').toLowerCase().includes(q)||String(ep.episode_number||'').includes(q); return mq&&(!cat||ep.category===cat); });
+  renderEpisodes(getSortedEpisodes(filtered));
+  document.querySelectorAll('th.sortable').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
+  const activeEl = document.querySelector(`[data-col="${sortCol}"]`);
+  if (activeEl) activeEl.closest('th').classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
 }
-
 async function saveEpisode() {
   const id=document.getElementById('episode-id').value;
   const body={episode_number:parseInt(document.getElementById('ep-num').value)||null,publish_date:document.getElementById('ep-date').value||null,title:document.getElementById('ep-title').value,youtube_url:document.getElementById('ep-yt').value||null,spotify_url:document.getElementById('ep-sp').value||null,apple_url:document.getElementById('ep-ap').value||null,youtube_views:parseInt(document.getElementById('ep-views').value)||null,spotify_listens:parseInt(document.getElementById('ep-listens').value)||null,guest_names:document.getElementById('ep-guests').value||null,topics:document.getElementById('ep-topics').value||null,category:document.getElementById('ep-category').value||null,summary:document.getElementById('ep-summary').value||null,notes:document.getElementById('ep-notes').value||null};
@@ -582,47 +632,29 @@ async function saveEpisode() {
   else { await fetch(`${SUPABASE_URL}/rest/v1/episodes`,{method:'POST',headers:sbHeaders,body:JSON.stringify(body)}); showToast('Added!'); }
   closeModal('episode'); loadEpisodes();
 }
-
 async function deleteEpisode(id) {
   if (!confirm('Delete?')) return;
   await fetch(`${SUPABASE_URL}/rest/v1/episodes?id=eq.${id}`,{method:'DELETE',headers:sbHeaders});
   showToast('Deleted'); loadEpisodes();
 }
-
 async function loadGuests() {
   if (!SUPABASE_KEY) return;
   const res=await fetch(`${SUPABASE_URL}/rest/v1/guests?order=created_at.desc`,{headers:sbHeaders});
   allGuests=await res.json(); renderGuests(allGuests);
 }
-
 function statusClass(s) {
   return {'Want to Book':'status-want','Contacted':'status-contacted','Follow Up':'status-followup','Booked':'status-booked','Recorded':'status-recorded','Published':'status-published'}[s]||'status-want';
 }
-
 function renderGuests(guests) {
   const tbody=document.getElementById('guests-tbody');
   if (!guests.length) { tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="icon">👥</div><p>No guests yet.</p></div></td></tr>`; return; }
-  tbody.innerHTML=guests.map(g=>`
-    <tr>
-      <td><strong>${g.name||'—'}</strong></td><td>${g.niche||'—'}</td>
-      <td style="font-size:12px;color:var(--muted)">${g.contact||'—'}</td>
-      <td><span class="status ${statusClass(g.outreach_status)}">${g.outreach_status||'—'}</span></td>
-      <td>${g.been_on_before?`<span class="tag-been-on">✓ YES</span>${g.episode_appeared?`<br><span style="font-size:11px;color:var(--muted);display:block;margin-top:2px">${g.episode_appeared}</span>`:''}` :'<span style="color:var(--muted);font-size:12px">No</span>'}</td>
-      <td style="font-size:12px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.notes||'—'}</td>
-      <td><div class="action-row">
-        <button class="btn btn-ghost btn-sm" onclick='openModal("guest",${JSON.stringify(g).replace(/'/g,"&#39;")})'>Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteGuest(${g.id})">Del</button>
-      </div></td>
-    </tr>
-  `).join('');
+  tbody.innerHTML=guests.map(g=>`<tr><td><strong>${g.name||'—'}</strong></td><td>${g.niche||'—'}</td><td style="font-size:12px;color:var(--muted)">${g.contact||'—'}</td><td><span class="status ${statusClass(g.outreach_status)}">${g.outreach_status||'—'}</span></td><td>${g.been_on_before?`<span class="tag-been-on">✓ YES</span>${g.episode_appeared?`<br><span style="font-size:11px;color:var(--muted);display:block;margin-top:2px">${g.episode_appeared}</span>`:''}` :'<span style="color:var(--muted);font-size:12px">No</span>'}</td><td style="font-size:12px;color:var(--muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.notes||'—'}</td><td><div class="action-row"><button class="btn btn-ghost btn-sm" onclick='openModal("guest",${JSON.stringify(g).replace(/'/g,"&#39;")})'>Edit</button><button class="btn btn-danger btn-sm" onclick="deleteGuest(${g.id})">Del</button></div></td></tr>`).join('');
 }
-
 function filterGuests() {
   const q=document.getElementById('guest-search').value.toLowerCase();
   const s=document.getElementById('status-filter').value;
   renderGuests(allGuests.filter(g=>((g.name||'').toLowerCase().includes(q)||(g.niche||'').toLowerCase().includes(q)||(g.notes||'').toLowerCase().includes(q))&&(!s||g.outreach_status===s)));
 }
-
 async function saveGuest() {
   const id=document.getElementById('guest-id').value;
   const body={name:document.getElementById('g-name').value,niche:document.getElementById('g-niche').value||null,contact:document.getElementById('g-contact').value||null,outreach_status:document.getElementById('g-status').value,been_on_before:document.getElementById('g-been').value==='true',episode_appeared:document.getElementById('g-episode').value||null,notes:document.getElementById('g-notes').value||null};
@@ -630,13 +662,29 @@ async function saveGuest() {
   else { await fetch(`${SUPABASE_URL}/rest/v1/guests`,{method:'POST',headers:sbHeaders,body:JSON.stringify(body)}); showToast('Added!'); }
   closeModal('guest'); loadGuests();
 }
-
 async function deleteGuest(id) {
   if (!confirm('Delete?')) return;
   await fetch(`${SUPABASE_URL}/rest/v1/guests?id=eq.${id}`,{method:'DELETE',headers:sbHeaders});
   showToast('Deleted'); loadGuests();
 }
-
+function renderYearComparison(eps) {
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const lastYear = thisYear - 1;
+  const thisYearEps = eps.filter(ep => ep.publish_date && new Date(ep.publish_date).getFullYear() === thisYear);
+  const lastYearEps = eps.filter(ep => ep.publish_date && new Date(ep.publish_date).getFullYear() === lastYear);
+  if (!thisYearEps.length && !lastYearEps.length) { document.getElementById('year-compare-section').style.display = 'none'; return; }
+  const sum = (arr, key) => arr.reduce((s, e) => s + (e[key] || 0), 0);
+  const metrics = [{ label: 'YouTube Views', key: 'youtube_views' }, { label: 'Likes', key: 'likes' }, { label: 'Comments', key: 'comments' }];
+  const html = metrics.map(m => {
+    const ty = sum(thisYearEps, m.key), ly = sum(lastYearEps, m.key);
+    const pct = ly > 0 ? Math.round(((ty - ly) / ly) * 100) : null;
+    const changeHtml = pct !== null ? `<span class="year-change ${pct>0?'up':pct<0?'down':'neutral'}">${pct>0?'+':''}${pct}% YoY</span>` : `<span class="year-change neutral">No prior year data</span>`;
+    return `<div class="year-card"><div class="label">${m.label}</div><div class="year-row"><span class="year-label">${thisYear} (${thisYearEps.length} eps)</span><span class="year-val">${fmt(ty)}</span></div><div class="year-row"><span class="year-label">${lastYear} (${lastYearEps.length} eps)</span><span class="year-val" style="font-size:17px;color:var(--muted)">${fmt(ly)}</span></div>${changeHtml}</div>`;
+  }).join('');
+  document.getElementById('year-compare-grid').innerHTML = html;
+  document.getElementById('year-compare-section').style.display = 'block';
+}
 async function loadInsightsPage() {
   if (!SUPABASE_KEY) return;
   if (!allEpisodes.length) {
@@ -647,13 +695,8 @@ async function loadInsightsPage() {
   const tl=allEpisodes.reduce((s,e)=>s+(e.likes||0),0);
   const tc=allEpisodes.reduce((s,e)=>s+(e.comments||0),0);
   const processed=allEpisodes.filter(e=>e.summary).length;
-  document.getElementById('insights-stats').innerHTML=`
-    <div class="stat-card"><div class="label">Total Episodes</div><div class="value">${allEpisodes.length}</div></div>
-    <div class="stat-card"><div class="label">Total Views</div><div class="value">${fmt(tv)}</div></div>
-    <div class="stat-card"><div class="label">Total Likes</div><div class="value">${fmt(tl)}</div></div>
-    <div class="stat-card"><div class="label">Total Comments</div><div class="value">${fmt(tc)}</div></div>
-    <div class="stat-card"><div class="label">AI Processed</div><div class="value">${processed}/${allEpisodes.length}</div></div>
-  `;
+  document.getElementById('insights-stats').innerHTML=`<div class="stat-card"><div class="label">Total Episodes</div><div class="value">${allEpisodes.length}</div></div><div class="stat-card"><div class="label">Total Views</div><div class="value">${fmt(tv)}</div></div><div class="stat-card"><div class="label">Total Likes</div><div class="value">${fmt(tl)}</div></div><div class="stat-card"><div class="label">Total Comments</div><div class="value">${fmt(tc)}</div></div><div class="stat-card"><div class="label">AI Processed</div><div class="value">${processed}/${allEpisodes.length}</div></div>`;
+  renderYearComparison(allEpisodes);
   const topV=[...allEpisodes].sort((a,b)=>(b.youtube_views||0)-(a.youtube_views||0)).slice(0,5);
   document.getElementById('top-by-views').innerHTML=topV.map((ep,i)=>`<div class="top-ep-row"><div class="top-ep-rank">${i+1}</div><div><div class="top-ep-title">${ep.title||'Untitled'}</div><div class="top-ep-stat">${fmt(ep.youtube_views)} views · Ep #${ep.episode_number||'?'}</div></div></div>`).join('');
   const topE=[...allEpisodes].sort((a,b)=>((b.likes||0)+(b.comments||0))-((a.likes||0)+(a.comments||0))).slice(0,5);
@@ -661,15 +704,8 @@ async function loadInsightsPage() {
   const cats={};
   allEpisodes.forEach(ep=>{if(ep.category)cats[ep.category]=(cats[ep.category]||0)+1;});
   const catSorted=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
-  document.getElementById('topics-breakdown').innerHTML=catSorted.length?catSorted.map(([cat,count])=>`
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <span class="category-tag" style="min-width:160px;text-align:center">${cat}</span>
-      <div style="flex:1;background:var(--surface2);border-radius:4px;height:6px;overflow:hidden"><div style="background:var(--accent);height:100%;width:${Math.round(count/allEpisodes.length*100)}%;border-radius:4px"></div></div>
-      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:40px;text-align:right">${count} eps</span>
-    </div>
-  `).join(''):'<span style="color:var(--muted);font-size:13px">Run "AI Process Descriptions" first.</span>';
+  document.getElementById('topics-breakdown').innerHTML=catSorted.length?catSorted.map(([cat,count])=>`<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px"><span class="category-tag" style="min-width:160px;text-align:center">${cat}</span><div style="flex:1;background:var(--surface2);border-radius:4px;height:6px;overflow:hidden"><div style="background:var(--accent);height:100%;width:${Math.round(count/allEpisodes.length*100)}%;border-radius:4px"></div></div><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);min-width:40px;text-align:right">${count} eps</span></div>`).join(''):'<span style="color:var(--muted);font-size:13px">Run "AI Process Descriptions" first.</span>';
 }
-
 async function generateInsights() {
   const btn=document.getElementById('insights-btn');
   const output=document.getElementById('ai-analysis');
@@ -682,23 +718,11 @@ async function generateInsights() {
   const cats={};
   allEpisodes.forEach(ep=>{if(ep.category)cats[ep.category]=(cats[ep.category]||0)+1;});
   try {
-    const text=await callClaude('claude-haiku-4-5-20251001',800,[{role:'user',content:`Analyze "The Side Hustle Experiment Podcast" (John & Drew, side hustles, Amazon, e-commerce).
-
-STATS: ${allEpisodes.length} episodes | ${tv.toLocaleString()} total views | ${avg.toLocaleString()} avg/ep
-
-TOP 10 BY VIEWS:
-${top10.map((ep,i)=>`${i+1}. "${ep.title}" — ${(ep.youtube_views||0).toLocaleString()} views, ${ep.likes||0} likes, ${ep.comments||0} comments${ep.category?' ['+ep.category+']':''}`).join('\n')}
-
-BOTTOM 5: ${bot5.map(ep=>`"${ep.title}" (${(ep.youtube_views||0).toLocaleString()} views)`).join(', ')}
-
-CATEGORIES: ${Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`${c}(${n})`).join(', ')||'not yet categorized'}
-
-Give: 1) What is working 2) Patterns in top vs bottom 3) 3 growth suggestions 4) One thing to stop. Be direct, reference actual titles.`}]);
+    const text=await callClaude('claude-haiku-4-5-20251001',800,[{role:'user',content:`Analyze "The Side Hustle Experiment Podcast" (John & Drew, side hustles, Amazon, e-commerce).\n\nSTATS: ${allEpisodes.length} episodes | ${tv.toLocaleString()} total views | ${avg.toLocaleString()} avg/ep\n\nTOP 10 BY VIEWS:\n${top10.map((ep,i)=>`${i+1}. "${ep.title}" — ${(ep.youtube_views||0).toLocaleString()} views, ${ep.likes||0} likes, ${ep.comments||0} comments${ep.category?' ['+ep.category+']':''}`).join('\n')}\n\nBOTTOM 5: ${bot5.map(ep=>`"${ep.title}" (${(ep.youtube_views||0).toLocaleString()} views)`).join(', ')}\n\nCATEGORIES: ${Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`${c}(${n})`).join(', ')||'not yet categorized'}\n\nGive: 1) What is working 2) Patterns in top vs bottom 3) 3 growth suggestions 4) One thing to stop. Be direct, reference actual titles.`}]);
     output.textContent=text; output.className='ai-response';
   } catch(err) { output.textContent='Error: '+err.message; output.className='ai-response'; }
   btn.disabled=false; btn.textContent='✦ Generate Insights';
 }
-
 async function generateOutreach() {
   const name=document.getElementById('og-name').value.trim();
   const niche=document.getElementById('og-niche').value.trim();
@@ -714,12 +738,9 @@ async function generateOutreach() {
   } catch(err) { document.getElementById('outreach-output').textContent='Error: '+err.message; }
   btn.textContent='Generate Message'; btn.disabled=false;
 }
-
 function copyOutreach() {
   navigator.clipboard.writeText(document.getElementById('outreach-output').textContent).then(()=>showToast('Copied!'));
 }
-
-// Start by loading config from the function
 loadConfig();
 </script>
 </body>
