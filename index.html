@@ -530,6 +530,7 @@ async function syncFromYouTube() {
       pageToken = data.nextPageToken||'';
       setStatus(`Fetched ${allItems.length} videos...`);
     } while (pageToken);
+
     const videoIds = allItems.map(i => i.snippet.resourceId.videoId);
     let videoDataMap = {};
     for (let i=0; i<videoIds.length; i+=50) {
@@ -537,24 +538,74 @@ async function syncFromYouTube() {
       const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,contentDetails,snippet&id=${batch.join(',')}&key=${YT_API_KEY}`);
       const data = await res.json();
       (data.items||[]).forEach(v => {
-        videoDataMap[v.id] = { views: parseInt(v.statistics.viewCount||0), likes: parseInt(v.statistics.likeCount||0), comments: parseInt(v.statistics.commentCount||0), duration: parseDuration(v.contentDetails?.duration), thumbnail: v.snippet.thumbnails?.medium?.url||v.snippet.thumbnails?.default?.url||null, description: (v.snippet.description||'').substring(0,2000) };
+        videoDataMap[v.id] = {
+          views: parseInt(v.statistics.viewCount||0),
+          likes: parseInt(v.statistics.likeCount||0),
+          comments: parseInt(v.statistics.commentCount||0),
+          duration: parseDuration(v.contentDetails?.duration),
+          thumbnail: v.snippet.thumbnails?.medium?.url||v.snippet.thumbnails?.default?.url||null,
+          description: (v.snippet.description||'').substring(0,2000)
+        };
       });
       setStatus(`Got stats for ${Math.min(i+50,videoIds.length)}/${videoIds.length}...`);
     }
-    setStatus('Saving to database...');
-    const total = allItems.length;
-    const upsertData = allItems.map((item, index) => {
-      const vid = item.snippet.resourceId.videoId;
-      const vd = videoDataMap[vid]||{};
-      return { title: item.snippet.title, publish_date: item.snippet.publishedAt ? item.snippet.publishedAt.split('T')[0] : null, youtube_url: `https://www.youtube.com/watch?v=${vid}`, youtube_views: vd.views||0, likes: vd.likes||0, comments: vd.comments||0, duration: vd.duration||null, thumbnail_url: vd.thumbnail||null, description: vd.description||null, episode_number: total - index };
+
+    setStatus('Checking existing episodes...');
+    const existingRes = await fetch(`${SUPABASE_URL}/rest/v1/episodes?select=youtube_url,episode_number&limit=2000`, {headers:sbHeaders});
+    const existingEps = await existingRes.json();
+    const existingUrlSet = new Set((existingEps||[]).map(ep => ep.youtube_url));
+    const maxEpNum = (existingEps||[]).reduce((m,ep) => Math.max(m, ep.episode_number||0), 0);
+
+    const newItems = allItems
+      .filter(item => !existingUrlSet.has(`https://www.youtube.com/watch?v=${item.snippet.resourceId.videoId}`))
+      .sort((a,b) => new Date(a.snippet.publishedAt) - new Date(b.snippet.publishedAt));
+
+    const newUrlToNumber = {};
+    newItems.forEach((item, i) => {
+      newUrlToNumber[`https://www.youtube.com/watch?v=${item.snippet.resourceId.videoId}`] = maxEpNum + i + 1;
     });
+
+    setStatus('Saving to database...');
+    const upsertData = allItems.map(item => {
+      const vid = item.snippet.resourceId.videoId;
+      const url = `https://www.youtube.com/watch?v=${vid}`;
+      const vd = videoDataMap[vid]||{};
+      const row = {
+        title: item.snippet.title,
+        publish_date: item.snippet.publishedAt ? item.snippet.publishedAt.split('T')[0] : null,
+        youtube_url: url,
+        youtube_views: vd.views||0,
+        likes: vd.likes||0,
+        comments: vd.comments||0,
+        duration: vd.duration||null,
+        thumbnail_url: vd.thumbnail||null,
+        description: vd.description||null,
+      };
+      if (newUrlToNumber[url]) row.episode_number = newUrlToNumber[url];
+      return row;
+    });
+
     for (let i=0; i<upsertData.length; i+=50) {
-      await fetch(`${SUPABASE_URL}/rest/v1/episodes`, { method: 'POST', headers: {...sbHeaders, 'Prefer': 'resolution=merge-duplicates,return=minimal'}, body: JSON.stringify(upsertData.slice(i,i+50)) });
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/episodes?on_conflict=youtube_url`, {
+        method: 'POST',
+        headers: {...sbHeaders, 'Prefer': 'resolution=merge-duplicates,return=minimal'},
+        body: JSON.stringify(upsertData.slice(i,i+50))
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`DB error: ${errText}`);
+      }
+      setStatus(`Saved ${Math.min(i+50,upsertData.length)}/${upsertData.length}...`);
     }
-    setStatus(`✓ Synced ${total} episodes — ${new Date().toLocaleTimeString()}`);
-    showToast(`✓ Synced ${total} episodes!`);
+
+    const newCount = newItems.length;
+    setStatus(`✓ Synced ${allItems.length} episodes (${newCount} new) — ${new Date().toLocaleTimeString()}`);
+    showToast(`✓ Synced! ${newCount} new episode${newCount!==1?'s':''} added, ${allItems.length - newCount} updated.`);
     loadEpisodes();
-  } catch(err) { setStatus('✗ Error: ' + err.message); showToast('Sync failed: ' + err.message, true); }
+  } catch(err) {
+    setStatus('✗ Error: ' + err.message);
+    showToast('Sync failed: ' + err.message, true);
+  }
   btn.disabled=false; btn.textContent='⟳ Sync YouTube';
 }
 async function aiProcessAll() {
