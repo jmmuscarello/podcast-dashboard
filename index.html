@@ -566,11 +566,11 @@ async function syncFromYouTube() {
     });
 
     setStatus('Saving to database...');
-    const upsertData = allItems.map(item => {
+   const upsertData = allItems.map(item => {
       const vid = item.snippet.resourceId.videoId;
       const url = `https://www.youtube.com/watch?v=${vid}`;
       const vd = videoDataMap[vid]||{};
-      const row = {
+      return {
         title: item.snippet.title,
         publish_date: item.snippet.publishedAt ? item.snippet.publishedAt.split('T')[0] : null,
         youtube_url: url,
@@ -580,8 +580,8 @@ async function syncFromYouTube() {
         duration: vd.duration||null,
         thumbnail_url: vd.thumbnail||null,
         description: vd.description||null,
+        episode_number: newUrlToNumber[url] || null,
       };
-      row.episode_number = newUrlToNumber[url] || null;
     });
 
     for (let i=0; i<upsertData.length; i+=50) {
