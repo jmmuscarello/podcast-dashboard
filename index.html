@@ -581,8 +581,7 @@ async function syncFromYouTube() {
         thumbnail_url: vd.thumbnail||null,
         description: vd.description||null,
       };
-      if (newUrlToNumber[url]) row.episode_number = newUrlToNumber[url];
-      return row;
+      row.episode_number = newUrlToNumber[url] || null;
     });
 
     for (let i=0; i<upsertData.length; i+=50) {
