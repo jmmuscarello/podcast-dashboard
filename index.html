@@ -530,7 +530,12 @@ async function syncFromYouTube() {
       pageToken = data.nextPageToken||'';
       setStatus(`Fetched ${allItems.length} videos...`);
     } while (pageToken);
-
+const seenIds = new Set();
+    allItems = allItems.filter(item => {
+      const vid = item.snippet.resourceId.videoId;
+      if (seenIds.has(vid)) return false;
+      seenIds.add(vid); return true;
+    });
     const videoIds = allItems.map(i => i.snippet.resourceId.videoId);
     let videoDataMap = {};
     for (let i=0; i<videoIds.length; i+=50) {
